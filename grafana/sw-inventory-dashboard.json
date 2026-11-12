@@ -129,7 +129,8 @@
         { "expr": "node_packages_upgradable{type=\"security\"}", "format": "table", "instant": true, "refId": "C" },
         { "expr": "node_reboot_required", "format": "table", "instant": true, "refId": "D" },
         { "expr": "node_kernel_update_pending", "format": "table", "instant": true, "refId": "E" },
-        { "expr": "time() - node_sw_inventory_scan_timestamp_seconds", "format": "table", "instant": true, "refId": "F" }
+        { "expr": "time() - node_sw_inventory_scan_timestamp_seconds", "format": "table", "instant": true, "refId": "F" },
+        { "expr": "node_os_info", "format": "table", "instant": true, "refId": "G" }
       ],
       "transformations": [
         {
@@ -140,9 +141,11 @@
           "id": "organize",
           "options": {
             "excludeByName": {
-              "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "Time 5": true, "Time 6": true,
+              "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "Time 5": true, "Time 6": true, "Time 7": true,
               "job": true, "__name__": true, "type": true, "source": true,
-              "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true
+              "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true,
+              "id": true, "id_like": true, "name": true, "version_id": true, "version_codename": true,
+              "Value #G": true
             },
             "renameByName": {
               "instance": "Host",
@@ -151,7 +154,13 @@
               "Value #C": "Upgradable (security)",
               "Value #D": "Reboot Required",
               "Value #E": "Kernel Pending",
-              "Value #F": "Last Scan (s ago)"
+              "Value #F": "Last Scan (s ago)",
+              "pretty_name": "OS",
+              "version": "Patch"
+            },
+            "indexByName": {
+              "instance": 0, "pretty_name": 1, "version": 2,
+              "Value #A": 3, "Value #B": 4, "Value #C": 5, "Value #D": 6, "Value #E": 7, "Value #F": 8
             }
           }
         }
