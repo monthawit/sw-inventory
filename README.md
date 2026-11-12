@@ -25,6 +25,7 @@ Supports Debian/Ubuntu (dpkg/apt) and RHEL/Rocky/Alma (rpm/dnf/yum).
 | `k8s/components/podmonitor/` | Mode B: httpd sidecar + PodMonitor |
 | `k8s/node-exporter-values.yaml` | Mode A: kube-prometheus-stack (Helm) values to turn on the textfile collector |
 | `k8s/node-exporter-patch.yaml` | Mode A: same, as a `kubectl patch` for non-Helm (plain manifest) installs |
+| `grafana/sw-inventory-dashboard.json` | Fleet overview + per-host drilldown dashboard (import into Grafana) |
 
 ## Install (per host)
 
@@ -134,6 +135,18 @@ curl -s localhost:9100/metrics | grep -E '^node_(software|packages|kernel_update
 | `node_sw_inventory_scan_{success,duration_seconds,timestamp_seconds}` | – | Pipeline health |
 
 Expected cardinality: about 15–40 series per node.
+
+## Grafana dashboard
+
+`grafana/sw-inventory-dashboard.json` — import it in Grafana (Dashboards → New → Import, or provision it
+via a `GrafanaDashboard`/dashboard-sidecar ConfigMap). It needs a `Prometheus` datasource picked at import time.
+
+* **Fleet overview** (top, no filter): per-host summary table (packages total/upgradable, reboot/kernel
+  pending, last scan) plus a full table of every allowlisted package/version on every node — sortable by
+  host or by package.
+* **Host detail** (bottom): a `host` dropdown variable (built from `instance`) drills into one node —
+  installed allowlisted packages, pending updates (security highlighted), kernel and reboot status.
+  Leave it on "All" to see every host's rows in the same tables.
 
 ## Useful queries
 
