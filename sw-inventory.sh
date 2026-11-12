@@ -59,26 +59,39 @@ fi
 PKG_TOTAL=$(wc -l < "$PKGTMP")
 cp "$PKGTMP" "${INVENTORY_DIR}/packages.tsv.tmp" && mv "${INVENTORY_DIR}/packages.tsv.tmp" "${INVENTORY_DIR}/packages.tsv"
 
-# ---------- upgradable packages: name<TAB>candidate<TAB>security(0/1) ----------
+# ---------- upgradable packages: name<TAB>candidate<TAB>security(0/1)<TAB>severity ----------
+# severity is one of: critical, high, medium, low, unknown (security update, no mapped severity), "" (not a security update)
 UPG=$(mktemp); trap 'rm -f "$TMP" "$PKGTMP" "$UPG"' EXIT
 if [[ $PKG_FAMILY == deb ]]; then
   [[ $REFRESH_CACHE == 1 ]] && { apt-get update -qq >/dev/null 2>&1 || SUCCESS=0; }
   # apt list line: name/suite1,suite2 newver arch [upgradable from: oldver]
+  # Debian/Ubuntu's apt does not expose a per-CVE severity, only "is this from the -security pocket".
   apt list --upgradable 2>/dev/null | awk '/upgradable from/ {
-      split($1,a,"/"); sec=(a[2] ~ /-security/)?1:0; print a[1]"\t"$2"\t"sec }' > "$UPG"
+      split($1,a,"/"); sec=(a[2] ~ /-security/)?1:0; sev=(sec==1)?"unknown":"";
+      print a[1]"\t"$2"\t"sec"\t"sev }' > "$UPG"
 else
   DNF=$(command -v dnf || command -v yum)
   if [[ -n "$DNF" ]]; then
     CACHEOPT="-C"; [[ $REFRESH_CACHE == 1 ]] && CACHEOPT=""
-    SECPKGS=$($DNF $CACHEOPT -q updateinfo list --security 2>/dev/null | awk 'NF>=3 {print $3}' \
-              | sed -E 's/-[^-]+-[^-]+$//' | sort -u)
+    # "<advisory> <Severity>/Sec. <name>-<ver>-<rel>.<arch>" -> name<TAB>severity (critical/high/medium/low)
+    SECSEVMAP=$(mktemp)
+    $DNF $CACHEOPT -q updateinfo list --security 2>/dev/null | awk 'NF>=3 {
+        sev=tolower($2); sub(/\/.*/,"",sev); gsub(/important/,"high",sev); gsub(/moderate/,"medium",sev);
+        n=$3; sub(/-[^-]+-[^-]+$/,"",n); print n"\t"sev }' | sort -u > "$SECSEVMAP"
+    SECPKGS=$(cut -f1 "$SECSEVMAP" | sort -u)
     # check-update exits 100 when updates exist
     $DNF $CACHEOPT -q check-update 2>/dev/null | awk 'NF==3 && $1 ~ /\./ {
         n=$1; sub(/\.[^.]+$/,"",n); print n"\t"$2 }' \
       | while IFS=$'\t' read -r n v; do
-          s=0; grep -qxF "$n" <<<"$SECPKGS" && s=1
-          printf '%s\t%s\t%s\n' "$n" "$v" "$s"
+          s=0; sev=""
+          if grep -qxF "$n" <<<"$SECPKGS"; then
+            s=1
+            sev=$(awk -F'\t' -v n="$n" '$1==n{print $2; exit}' "$SECSEVMAP")
+            case "$sev" in critical|high|medium|low) ;; *) sev=unknown ;; esac
+          fi
+          printf '%s\t%s\t%s\t%s\n' "$n" "$v" "$s" "$sev"
         done > "$UPG"
+    rm -f "$SECSEVMAP"
   fi
 fi
 UPG_ALL=$(wc -l < "$UPG")
@@ -111,10 +124,10 @@ fi
     printf 'node_software_info{name="%s",version="%s",source="%s"} 1\n' "$(esc "$n")" "$(esc "$v")" "$PKG_FAMILY"
   done
 
-  echo "# HELP node_software_upgradable Allowlisted package has a newer version available (security=1 if from security advisory)."
+  echo "# HELP node_software_upgradable Allowlisted package has a newer version available (security=1 if from security advisory; severity is critical/high/medium/low/unknown for security updates, empty otherwise)."
   echo "# TYPE node_software_upgradable gauge"
-  awk -F'\t' -v re="$ALLOW_RE" '$1 ~ re' "$UPG" | while IFS=$'\t' read -r n v s; do
-    printf 'node_software_upgradable{name="%s",candidate="%s",security="%s"} 1\n' "$(esc "$n")" "$(esc "$v")" "$s"
+  awk -F'\t' -v re="$ALLOW_RE" '$1 ~ re' "$UPG" | while IFS=$'\t' read -r n v s sev; do
+    printf 'node_software_upgradable{name="%s",candidate="%s",security="%s",severity="%s"} 1\n' "$(esc "$n")" "$(esc "$v")" "$s" "$(esc "$sev")"
   done
 
   echo "# HELP node_packages_total Number of installed OS packages."

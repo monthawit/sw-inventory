@@ -105,11 +105,59 @@
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } }, "overrides": [] }
     },
     {
+      "id": 20,
+      "type": "stat",
+      "title": "Critical Updates (fleet)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum(node_software_upgradable{severity=\"critical\"}) or vector(0)", "legendFormat": "critical", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "dark-red", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "High Updates (fleet)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum(node_software_upgradable{severity=\"high\"}) or vector(0)", "legendFormat": "high", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Medium Updates (fleet)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum(node_software_upgradable{severity=\"medium\"}) or vector(0)", "legendFormat": "medium", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Low Updates (fleet)",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum(node_software_upgradable{severity=\"low\"}) or vector(0)", "legendFormat": "low", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "blue", "value": 1 }] } }, "overrides": [] }
+    },
+    {
       "id": 7,
       "type": "table",
       "title": "Per-Host Summary",
       "description": "One row per node: OS, kernel, package counts, pending updates, reboot/kernel status. Click a Host cell to drill into it.",
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 4 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "node_packages_total", "format": "table", "instant": true, "refId": "A" },
@@ -185,7 +233,7 @@
       "type": "table",
       "title": "Installed Software — All Nodes (allowlisted)",
       "description": "Every allowlisted package/version on every node. Filter/sort by Host or Name in the column header.",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 13 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 17 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "node_software_info", "format": "table", "instant": true, "refId": "A" }

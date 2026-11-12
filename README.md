@@ -127,7 +127,7 @@ curl -s localhost:9100/metrics | grep -E '^node_(software|packages|kernel_update
 | Metric | Labels | Meaning |
 |---|---|---|
 | `node_software_info` | name, version, source | Allowlisted package installed (=1) |
-| `node_software_upgradable` | name, candidate, security | Allowlisted package has an update |
+| `node_software_upgradable` | name, candidate, security, severity | Allowlisted package has an update (severity: critical/high/medium/low/unknown for security updates, empty otherwise) |
 | `node_packages_total` | source | Number of installed packages |
 | `node_packages_upgradable` | type=all/security | Pending updates |
 | `node_kernel_latest_installed_info` | version, running | Newest installed kernel |
@@ -136,6 +136,10 @@ curl -s localhost:9100/metrics | grep -E '^node_(software|packages|kernel_update
 | `node_sw_inventory_scan_{success,duration_seconds,timestamp_seconds}` | – | Pipeline health |
 
 Expected cardinality: about 15–40 series per node.
+
+**`severity` source:** RHEL/Rocky/Alma/Fedora (dnf/yum) get a real severity from `dnf updateinfo list --security`
+(RHSA Critical/Important/Moderate/Low → critical/high/medium/low). Debian/Ubuntu's `apt` only knows a package is
+*from the -security pocket*, not its CVE severity, so deb security updates are always reported as `severity="unknown"`.
 
 ## Grafana dashboards
 

@@ -140,20 +140,34 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
-            "renameByName": { "instance": "Host", "name": "Package", "candidate": "Candidate Version", "security": "Security" },
-            "indexByName": { "name": 0, "candidate": 1, "security": 2, "instance": 3 }
+            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true, "security": true },
+            "renameByName": { "instance": "Host", "name": "Package", "candidate": "Candidate Version", "severity": "Severity" },
+            "indexByName": { "name": 0, "candidate": 1, "severity": 2, "instance": 3 }
           }
-        },
-        {
-          "id": "convertFieldType",
-          "options": { "conversions": [{ "targetField": "Security", "destinationType": "boolean" }], "fields": {} }
         }
       ],
       "fieldConfig": {
         "defaults": {},
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Security" }, "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-background" } }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "red", "value": 1 }] } }] }
+          {
+            "matcher": { "id": "byName", "options": "Severity" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": {
+                    "critical": { "text": "CRITICAL", "color": "dark-red", "index": 0 },
+                    "high":     { "text": "HIGH",     "color": "red",      "index": 1 },
+                    "medium":   { "text": "MEDIUM",   "color": "orange",   "index": 2 },
+                    "low":      { "text": "LOW",       "color": "blue",     "index": 3 },
+                    "unknown":  { "text": "UNKNOWN",  "color": "purple",   "index": 4 },
+                    "":         { "text": "—",         "color": "transparent", "index": 5 }
+                  } }
+                ]
+              }
+            ]
+          }
         ]
       },
       "options": { "showHeader": true }
