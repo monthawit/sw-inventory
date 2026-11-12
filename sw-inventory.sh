@@ -80,8 +80,8 @@ else
         n=$3; sub(/-[^-]+-[^-]+$/,"",n); print n"\t"sev }' | sort -u > "$SECSEVMAP"
     SECPKGS=$(cut -f1 "$SECSEVMAP" | sort -u)
     # check-update exits 100 when updates exist
-    $DNF $CACHEOPT -q check-update 2>/dev/null | awk 'NF==3 && $1 ~ /\./ {
-        n=$1; sub(/\.[^.]+$/,"",n); print n"\t"$2 }' \
+    $DNF $CACHEOPT -q check-update 2>/dev/null | awk 'NF==3 && $1 ~ /[.]/ {
+        n=$1; sub(/[.][^.]+$/,"",n); print n"\t"$2 }' \
       | while IFS=$'\t' read -r n v; do
           s=0; sev=""
           if grep -qxF "$n" <<<"$SECPKGS"; then
