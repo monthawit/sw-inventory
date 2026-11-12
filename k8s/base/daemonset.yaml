@@ -35,6 +35,11 @@ spec:
               value: "3600"
             - name: JITTER_SECONDS
               value: "600"
+            # Uncomment to enrich deb/Ubuntu security-update severity via osv.dev (RPM/dnf already gets
+            # real severity for free). Needs curl+jq on the HOST (script chroots into /host) and pod
+            # egress to api.osv.dev — see README "osv.dev severity enrichment".
+            # - name: OSV_ENRICH
+            #   value: "1"
           resources:
             requests: {cpu: 5m, memory: 16Mi}
             limits:   {memory: 256Mi}           # apt/dnf metadata parsing peaks here

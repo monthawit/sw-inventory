@@ -7,6 +7,9 @@ set -u
 INTERVAL_SECONDS="${INTERVAL_SECONDS:-3600}"
 JITTER_SECONDS="${JITTER_SECONDS:-600}"
 HOST_ROOT="${HOST_ROOT:-/host}"
+OSV_ENRICH="${OSV_ENRICH:-0}"
+OSV_ECOSYSTEM="${OSV_ECOSYSTEM:-}"
+OSV_TIMEOUT="${OSV_TIMEOUT:-10}"
 
 build_regex() {
   grep -vE '^[[:space:]]*(#|$)' /config/allowlist.conf | sed 's/[[:space:]]*$//' | tr '\n' '|' | sed 's/|$//'
@@ -26,6 +29,9 @@ while true; do
         INVENTORY_DIR=/var/lib/sw-inventory \
         TMPDIR=/var/lib/sw-inventory \
         REFRESH_CACHE=0 \
+        OSV_ENRICH="$OSV_ENRICH" \
+        OSV_ECOSYSTEM="$OSV_ECOSYSTEM" \
+        OSV_TIMEOUT="$OSV_TIMEOUT" \
         PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
         /bin/bash -c "$SCRIPT"; then
     echo "sw-inventory: $(date -u +%FT%TZ) ok"

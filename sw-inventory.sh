@@ -12,6 +12,14 @@
 #   REFRESH_CACHE  default 0  (1 = run apt-get update / dnf makecache before checking upgrades; needs repo access)
 #   ALLOWLIST_REGEX optional  (overrides ALLOWLIST_FILE; used by the K8s DaemonSet)
 #   TMPDIR         optional  (K8s mode points this at a writable host dir because host / is mounted read-only)
+#   OSV_ENRICH     default 0  (1 = look up severity for deb security updates against osv.dev; needs curl+jq
+#                              and HTTPS egress to api.osv.dev, adds ~1 request per upgradable allowlisted
+#                              package per run. RPM/dnf already gets real severity for free, this only
+#                              fills in Debian/Ubuntu's severity="unknown". Best-effort: any failure — no
+#                              network, no curl/jq, no match — leaves severity="unknown" as before.)
+#   OSV_ECOSYSTEM  optional  (override the osv.dev ecosystem string, e.g. "Debian:12"; auto-detected from
+#                              /etc/os-release otherwise)
+#   OSV_TIMEOUT    default 10  (seconds, curl -m per request)
 
 set -uo pipefail
 
@@ -19,7 +27,44 @@ TEXTFILE_DIR="${TEXTFILE_DIR:-/var/lib/node_exporter/textfile}"
 INVENTORY_DIR="${INVENTORY_DIR:-/var/lib/sw-inventory}"
 ALLOWLIST_FILE="${ALLOWLIST_FILE:-/etc/sw-inventory/allowlist.conf}"
 REFRESH_CACHE="${REFRESH_CACHE:-0}"
+OSV_ENRICH="${OSV_ENRICH:-0}"
+OSV_TIMEOUT="${OSV_TIMEOUT:-10}"
 OUT="${TEXTFILE_DIR}/sw_inventory.prom"
+
+# CVSS v3.1 base score -> severity bucket, from a CVSS_V3 vector string (used to enrich osv.dev results).
+# Approximate (simple ceil-to-0.1 rounding, not the spec's exact Roundup()) — good enough for bucketing,
+# not an authoritative score. https://www.first.org/cvss/v3-1/specification-document section 7.
+read -r -d '' OSV_CVSS_JQ <<'JQ_EOF' || true
+def cvss31_score(vector):
+  (vector) as $v
+  | ($v | capture("AV:(?<x>[NALP])") .x) as $AV
+  | ($v | capture("AC:(?<x>[LH])") .x) as $AC
+  | ($v | capture("PR:(?<x>[NLH])") .x) as $PR
+  | ($v | capture("UI:(?<x>[NR])") .x) as $UI
+  | ($v | capture("/S:(?<x>[UC])") .x) as $S
+  | ($v | capture("/C:(?<x>[NLH])") .x) as $C
+  | ($v | capture("/I:(?<x>[NLH])") .x) as $I
+  | ($v | capture("/A:(?<x>[NLH])") .x) as $A
+  | ({"N":0.85,"A":0.62,"L":0.55,"P":0.2}[$AV]) as $avn
+  | ({"L":0.77,"H":0.44}[$AC]) as $acn
+  | (if $S=="U" then {"N":0.85,"L":0.62,"H":0.27}[$PR] else {"N":0.85,"L":0.68,"H":0.50}[$PR] end) as $prn
+  | ({"N":0.85,"R":0.62}[$UI]) as $uin
+  | ({"N":0,"L":0.22,"H":0.56}[$C]) as $cn
+  | ({"N":0,"L":0.22,"H":0.56}[$I]) as $in
+  | ({"N":0,"L":0.22,"H":0.56}[$A]) as $an
+  | (1 - ((1-$cn)*(1-$in)*(1-$an))) as $isc
+  | (if $S=="U" then 6.42*$isc else 7.52*($isc-0.029) - 3.25*(($isc-0.02)|pow(.;15)) end) as $impact
+  | ($avn*$acn*$prn*$uin*8.22) as $expl
+  | (if $impact<=0 then 0
+     elif $S=="U" then ([($impact+$expl),10]|min)
+     else ([1.08*($impact+$expl),10]|min)
+     end) as $raw
+  | ((($raw*10)|ceil)/10);
+def bucket(score):
+  if score>=9 then "critical" elif score>=7 then "high" elif score>=4 then "medium" elif score>0 then "low" else empty end;
+[ .vulns[]?.severity[]? | select(.type=="CVSS_V3") | .score | cvss31_score(.) ] as $scores
+| if ($scores|length)==0 then empty else bucket($scores|max) end
+JQ_EOF
 
 START=$(date +%s.%N)
 SUCCESS=1
@@ -96,6 +141,40 @@ else
 fi
 UPG_ALL=$(wc -l < "$UPG")
 UPG_SEC=$(awk -F'\t' '$3==1' "$UPG" | wc -l)
+
+# ---------- optional: osv.dev severity enrichment for deb security updates ----------
+# Only touches allowlisted, security-flagged packages (severity="unknown" so far). Best-effort: any
+# failure (no network, no curl/jq, no osv.dev match) just leaves severity="unknown" as it already was.
+if [[ $OSV_ENRICH == 1 && $PKG_FAMILY == deb ]] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  OSV_ECOSYSTEM="${OSV_ECOSYSTEM:-}"
+  if [[ -z "$OSV_ECOSYSTEM" && -r /etc/os-release ]]; then
+    . /etc/os-release
+    case "${ID:-}" in
+      ubuntu) OSV_ECOSYSTEM="Ubuntu" ;;
+      debian) OSV_ECOSYSTEM="Debian${VERSION_ID:+:$VERSION_ID}" ;;
+    esac
+  fi
+  if [[ -n "$OSV_ECOSYSTEM" ]]; then
+    OSVSEV=$(mktemp); trap 'rm -f "$TMP" "$PKGTMP" "$UPG" "$OSVSEV"' EXIT
+    awk -F'\t' -v re="$ALLOW_RE" '$1 ~ re && $3==1 {print $1}' "$UPG" | sort -u \
+      | while IFS= read -r n; do
+          inst=$(awk -F'\t' -v n="$n" '$1==n{print $2; exit}' "$PKGTMP")
+          [[ -z "$inst" ]] && continue
+          q=$(jq -nc --arg n "$n" --arg v "$inst" --arg eco "$OSV_ECOSYSTEM" \
+                '{package:{name:$n,ecosystem:$eco},version:$v}')
+          resp=$(curl -fsS -m "$OSV_TIMEOUT" -X POST -H 'Content-Type: application/json' \
+                 -d "$q" https://api.osv.dev/v1/query 2>/dev/null) || continue
+          b=$(printf '%s' "$resp" | jq -r "$OSV_CVSS_JQ" 2>/dev/null) || continue
+          [[ -n "$b" && "$b" != "null" ]] && printf '%s\t%s\n' "$n" "$b" >> "$OSVSEV"
+        done
+    if [[ -s "$OSVSEV" ]]; then
+      NEWUPG=$(mktemp)
+      awk -F'\t' 'BEGIN{OFS="\t"} NR==FNR{sev[$1]=$2; next} {if ($1 in sev) $4=sev[$1]; print}' \
+        "$OSVSEV" "$UPG" > "$NEWUPG" && mv "$NEWUPG" "$UPG"
+    fi
+    rm -f "$OSVSEV"
+  fi
+fi
 
 # ---------- kernel: running vs newest installed ----------
 RUNNING_KERNEL=$(uname -r)

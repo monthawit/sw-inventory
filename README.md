@@ -178,6 +178,28 @@ node_kernel_update_pending == 1
 
 To track a new package, add a regex line to `/etc/sw-inventory/allowlist.conf`. It is picked up on the next run.
 
+### osv.dev severity enrichment (optional, `OSV_ENRICH=1`)
+
+RHEL/dnf already gets a real severity from `dnf updateinfo` (see [Metrics](#metrics)). Debian/Ubuntu's `apt`
+doesn't expose one, so deb security updates are reported as `severity="unknown"`. Setting `OSV_ENRICH=1`
+fills that in by querying [osv.dev](https://osv.dev) per allowlisted security-flagged package (installed
+version), and computing a CVSS v3.1 base score from osv.dev's `CVSS_V3` vector into the same
+critical/high/medium/low buckets dnf gives natively (approximate — simple ceil-to-0.1 rounding, not the
+CVSS spec's exact `Roundup()` — good enough for bucketing, not an authoritative score). It's best-effort:
+no network, no `curl`/`jq`, or no osv.dev match for a package just leaves `severity="unknown"` as before —
+nothing breaks.
+
+* `OSV_ENRICH=0` (default) / `1`: enable
+* `OSV_ECOSYSTEM`: override the osv.dev ecosystem string (e.g. `Debian:12`). Auto-detected from
+  `/etc/os-release` otherwise (`Ubuntu`, or `Debian:$VERSION_ID`)
+* `OSV_TIMEOUT=10`: seconds, `curl -m` per request
+
+Requires `curl` and `jq` on the host, and HTTPS egress to `api.osv.dev` — one request per upgradable
+allowlisted package per run (keep the allowlist ~10–30 entries, per above, and this stays cheap). On K8s
+(Mode A/B), the script runs chrooted into the host root, so `curl`/`jq` must exist **on the node itself**,
+not just in the collector's busybox image; set `OSV_ENRICH=1` on the DaemonSet container env (commented
+out by default in `k8s/base/daemonset.yaml`).
+
 ## Notes
 
 * Software running inside containers is not visible here (use Trivy Operator / Harbor scan for images).
