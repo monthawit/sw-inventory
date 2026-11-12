@@ -132,7 +132,6 @@
         { "expr": "time() - node_sw_inventory_scan_timestamp_seconds", "format": "table", "instant": true, "refId": "F" }
       ],
       "transformations": [
-        { "id": "merge", "options": {} },
         {
           "id": "joinByField",
           "options": { "byField": "instance", "mode": "outer" }
@@ -141,7 +140,9 @@
           "id": "organize",
           "options": {
             "excludeByName": {
-              "Time": true, "job": true, "__name__": true, "type": true, "source": true
+              "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "Time 5": true, "Time 6": true,
+              "job": true, "__name__": true, "type": true, "source": true,
+              "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true
             },
             "renameByName": {
               "instance": "Host",
@@ -179,7 +180,7 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true },
+            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
             "renameByName": { "instance": "Host", "name": "Package", "version": "Version", "source": "Source" },
             "indexByName": { "instance": 0, "name": 1, "version": 2, "source": 3 }
           }
@@ -268,7 +269,7 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true },
+            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
             "renameByName": { "instance": "Host", "name": "Package", "version": "Version", "source": "Source" },
             "indexByName": { "name": 0, "version": 1, "source": 2, "instance": 3 }
           }
@@ -289,7 +290,7 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true },
+            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
             "renameByName": { "instance": "Host", "name": "Package", "candidate": "Candidate Version", "security": "Security" },
             "indexByName": { "name": 0, "candidate": 1, "security": 2, "instance": 3 }
           }
