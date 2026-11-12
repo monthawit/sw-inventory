@@ -1,0 +1,27 @@
+# JSON6902 patch to enable the textfile collector on a node-exporter DaemonSet
+# that was installed from plain manifests (no Helm), e.g. prometheus-operator/kube-prometheus.
+# Same effect as k8s/node-exporter-values.yaml, for Helm installs.
+#
+# Verify the node-exporter container is index 0 first:
+#   kubectl get ds <node-exporter-ds-name> -n monitoring -o jsonpath='{.spec.template.spec.containers[*].name}{"\n"}'
+# If not, change containers/0 below to the right index.
+#
+#   kubectl patch daemonset <node-exporter-ds-name> -n monitoring \
+#     --type=json --patch-file k8s/node-exporter-patch.yaml
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --collector.textfile.directory=/host/textfile
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/-
+  value:
+    name: sw-inventory-textfile
+    mountPath: /host/textfile
+    readOnly: true
+    mountPropagation: HostToContainer
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: sw-inventory-textfile
+    hostPath:
+      path: /var/lib/node_exporter/textfile
+      type: DirectoryOrCreate

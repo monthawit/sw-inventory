@@ -23,7 +23,8 @@ Supports Debian/Ubuntu (dpkg/apt) and RHEL/Rocky/Alma (rpm/dnf/yum).
 | `kustomization.yaml` | **K8s entry point** (`kubectl apply -k .`). Builds the ConfigMap from the same `sw-inventory.sh` + `allowlist.conf` |
 | `k8s/base/` | DaemonSet, ServiceAccount, PrometheusRule, `run.sh` loop |
 | `k8s/components/podmonitor/` | Mode B: httpd sidecar + PodMonitor |
-| `k8s/node-exporter-values.yaml` | Mode A: kube-prometheus-stack values to turn on the textfile collector |
+| `k8s/node-exporter-values.yaml` | Mode A: kube-prometheus-stack (Helm) values to turn on the textfile collector |
+| `k8s/node-exporter-patch.yaml` | Mode A: same, as a `kubectl patch` for non-Helm (plain manifest) installs |
 
 ## Install (per host)
 
@@ -61,6 +62,19 @@ helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack -n
 # 2. deploy collector + PrometheusRule
 kubectl apply -k .
 ```
+
+If Prometheus Operator / node-exporter was installed from plain manifests (no Helm, e.g. `kubectl apply` of
+prometheus-operator/kube-prometheus), patch the node-exporter DaemonSet directly instead of step 1:
+
+```bash
+# 1. turn on the textfile collector by patching the node-exporter DaemonSet
+kubectl patch daemonset <node-exporter-ds-name> -n monitoring \
+  --type=json --patch-file k8s/node-exporter-patch.yaml
+# 2. deploy collector + PrometheusRule
+kubectl apply -k .
+```
+
+See `k8s/node-exporter-patch.yaml` for the patch and how to confirm the container index first.
 
 Metrics then carry the same `job`/`instance` labels as all other node-exporter metrics, so dashboards can join on them directly.
 
