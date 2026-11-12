@@ -1,6 +1,6 @@
 {
-  "title": "Software Inventory",
-  "uid": "sw-inventory",
+  "title": "Software Inventory — Fleet Overview",
+  "uid": "sw-inventory-overview",
   "editable": true,
   "schemaVersion": 39,
   "version": 1,
@@ -8,6 +8,16 @@
   "timezone": "",
   "time": { "from": "now-24h", "to": "now" },
   "refresh": "5m",
+  "links": [
+    {
+      "title": "Host Detail →",
+      "type": "link",
+      "url": "/d/sw-inventory-host-detail",
+      "icon": "dashboard",
+      "tooltip": "Drill into one host",
+      "targetBlank": false
+    }
+  ],
   "templating": {
     "list": [
       {
@@ -17,38 +27,16 @@
         "current": {},
         "label": "Datasource",
         "hide": 0
-      },
-      {
-        "name": "host",
-        "type": "query",
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "query": "label_values(node_sw_inventory_scan_timestamp_seconds, instance)",
-        "label": "Host",
-        "refresh": 2,
-        "sort": 1,
-        "includeAll": true,
-        "allValue": ".*",
-        "multi": false,
-        "current": { "text": "All", "value": "$__all" },
-        "hide": 0
       }
     ]
   },
   "annotations": { "list": [] },
   "panels": [
     {
-      "id": 100,
-      "type": "row",
-      "title": "Fleet overview — what's on each node",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
-      "panels": []
-    },
-    {
       "id": 1,
       "type": "stat",
       "title": "Nodes Reporting",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "count(node_sw_inventory_scan_timestamp_seconds)", "legendFormat": "nodes", "refId": "A" }
@@ -60,7 +48,7 @@
       "id": 2,
       "type": "stat",
       "title": "Scan Failures",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "count(node_sw_inventory_scan_success == 0) or vector(0)", "legendFormat": "failed", "refId": "A" }
@@ -72,7 +60,7 @@
       "id": 3,
       "type": "stat",
       "title": "Nodes Needing Reboot",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "count(node_reboot_required == 1) or vector(0)", "legendFormat": "reboot", "refId": "A" }
@@ -84,7 +72,7 @@
       "id": 4,
       "type": "stat",
       "title": "Pending Security Updates (fleet)",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "sum(node_packages_upgradable{type=\"security\"})", "legendFormat": "security updates", "refId": "A" }
@@ -96,7 +84,7 @@
       "id": 5,
       "type": "stat",
       "title": "Pending Updates — All (fleet)",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "sum(node_packages_upgradable{type=\"all\"})", "legendFormat": "all updates", "refId": "A" }
@@ -108,7 +96,7 @@
       "id": 6,
       "type": "stat",
       "title": "Kernel Reboot Pending",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "count(node_kernel_update_pending == 1) or vector(0)", "legendFormat": "kernel pending", "refId": "A" }
@@ -120,8 +108,8 @@
       "id": 7,
       "type": "table",
       "title": "Per-Host Summary",
-      "description": "One row per node: package counts, pending updates, reboot/kernel status.",
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 5 },
+      "description": "One row per node: OS, kernel, package counts, pending updates, reboot/kernel status. Click a Host cell to drill into it.",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "node_packages_total", "format": "table", "instant": true, "refId": "A" },
@@ -130,7 +118,8 @@
         { "expr": "node_reboot_required", "format": "table", "instant": true, "refId": "D" },
         { "expr": "node_kernel_update_pending", "format": "table", "instant": true, "refId": "E" },
         { "expr": "time() - node_sw_inventory_scan_timestamp_seconds", "format": "table", "instant": true, "refId": "F" },
-        { "expr": "node_os_info", "format": "table", "instant": true, "refId": "G" }
+        { "expr": "node_os_info", "format": "table", "instant": true, "refId": "G" },
+        { "expr": "node_kernel_latest_installed_info", "format": "table", "instant": true, "refId": "H" }
       ],
       "transformations": [
         {
@@ -145,7 +134,8 @@
               "job": true, "__name__": true, "type": true, "source": true,
               "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true,
               "id": true, "id_like": true, "name": true, "version_id": true, "version_codename": true,
-              "Value #G": true
+              "version": true, "version 1": true,
+              "Value #G": true, "Value #H": true
             },
             "renameByName": {
               "instance": "Host",
@@ -156,10 +146,10 @@
               "Value #E": "Kernel Pending",
               "Value #F": "Last Scan (s ago)",
               "pretty_name": "OS",
-              "version": "Patch"
+              "running": "KERNEL-VERSION"
             },
             "indexByName": {
-              "instance": 0, "pretty_name": 1, "version": 2,
+              "instance": 0, "pretty_name": 1, "running": 2,
               "Value #A": 3, "Value #B": 4, "Value #C": 5, "Value #D": 6, "Value #E": 7, "Value #F": 8
             }
           }
@@ -170,7 +160,22 @@
         "overrides": [
           { "matcher": { "id": "byName", "options": "Upgradable (security)" }, "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "red", "value": 1 }] } }] },
           { "matcher": { "id": "byName", "options": "Reboot Required" }, "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "orange", "value": 1 }] } }] },
-          { "matcher": { "id": "byName", "options": "Kernel Pending" }, "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "orange", "value": 1 }] } }] }
+          { "matcher": { "id": "byName", "options": "Kernel Pending" }, "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "orange", "value": 1 }] } }] },
+          {
+            "matcher": { "id": "byName", "options": "Host" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View host detail",
+                    "url": "/d/sw-inventory-host-detail?var-host=${__value.text}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
         ]
       },
       "options": { "showHeader": true }
@@ -180,7 +185,7 @@
       "type": "table",
       "title": "Installed Software — All Nodes (allowlisted)",
       "description": "Every allowlisted package/version on every node. Filter/sort by Host or Name in the column header.",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 14 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 13 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "node_software_info", "format": "table", "instant": true, "refId": "A" }
@@ -195,124 +200,24 @@
           }
         }
       ],
-      "options": { "showHeader": true }
-    },
-    {
-      "id": 101,
-      "type": "row",
-      "title": "Host detail — $host",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
-      "panels": []
-    },
-    {
-      "id": 10,
-      "type": "stat",
-      "title": "Packages Total",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        { "expr": "node_packages_total{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
-      ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
-      "fieldConfig": { "defaults": {}, "overrides": [] }
-    },
-    {
-      "id": 11,
-      "type": "stat",
-      "title": "Upgradable — All / Security",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        { "expr": "node_packages_upgradable{instance=~\"$host\"}", "legendFormat": "{{instance}} {{type}}", "refId": "A" }
-      ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }, "overrides": [] }
-    },
-    {
-      "id": 12,
-      "type": "stat",
-      "title": "Reboot Required",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        { "expr": "node_reboot_required{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
-      ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
-      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "0": { "text": "No" }, "1": { "text": "Yes" } } }], "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } }, "overrides": [] }
-    },
-    {
-      "id": 13,
-      "type": "stat",
-      "title": "Kernel: Running vs Latest Installed",
-      "gridPos": { "h": 4, "w": 8, "x": 12, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        { "expr": "node_kernel_latest_installed_info{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
-      ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "name" },
-      "fieldConfig": { "defaults": {}, "overrides": [] }
-    },
-    {
-      "id": 14,
-      "type": "stat",
-      "title": "Last Scan",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        { "expr": "time() - node_sw_inventory_scan_timestamp_seconds{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
-      ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
-    },
-    {
-      "id": 15,
-      "type": "table",
-      "title": "Installed Allowlisted Software — $host",
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 29 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        { "expr": "node_software_info{instance=~\"$host\"}", "format": "table", "instant": true, "refId": "A" }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
-            "renameByName": { "instance": "Host", "name": "Package", "version": "Version", "source": "Source" },
-            "indexByName": { "name": 0, "version": 1, "source": 2, "instance": 3 }
-          }
-        }
-      ],
-      "options": { "showHeader": true }
-    },
-    {
-      "id": 16,
-      "type": "table",
-      "title": "Pending Updates — $host",
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 29 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        { "expr": "node_software_upgradable{instance=~\"$host\"}", "format": "table", "instant": true, "refId": "A" }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
-            "renameByName": { "instance": "Host", "name": "Package", "candidate": "Candidate Version", "security": "Security" },
-            "indexByName": { "name": 0, "candidate": 1, "security": 2, "instance": 3 }
-          }
-        },
-        {
-          "id": "convertFieldType",
-          "options": { "conversions": [{ "targetField": "Security", "destinationType": "boolean" }], "fields": {} }
-        }
-      ],
       "fieldConfig": {
         "defaults": {},
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Security" }, "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-background" } }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "red", "value": 1 }] } }] }
+          {
+            "matcher": { "id": "byName", "options": "Host" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View host detail",
+                    "url": "/d/sw-inventory-host-detail?var-host=${__value.text}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
         ]
       },
       "options": { "showHeader": true }

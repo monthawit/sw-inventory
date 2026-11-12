@@ -1,0 +1,162 @@
+{
+  "title": "Software Inventory — Host Detail",
+  "uid": "sw-inventory-host-detail",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["sw-inventory", "node_exporter"],
+  "timezone": "",
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "5m",
+  "links": [
+    {
+      "title": "← Fleet Overview",
+      "type": "link",
+      "url": "/d/sw-inventory-overview",
+      "icon": "dashboard",
+      "tooltip": "Back to fleet overview",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "label": "Datasource",
+        "hide": 0
+      },
+      {
+        "name": "host",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(node_sw_inventory_scan_timestamp_seconds, instance)",
+        "label": "Host",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "current": { "text": "All", "value": "$__all" },
+        "hide": 0
+      }
+    ]
+  },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Packages Total",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "node_packages_total{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Upgradable — All / Security",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "node_packages_upgradable{instance=~\"$host\"}", "legendFormat": "{{instance}} {{type}}", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Reboot Required",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "node_reboot_required{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "0": { "text": "No" }, "1": { "text": "Yes" } } }], "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Kernel: Running vs Latest Installed",
+      "gridPos": { "h": 4, "w": 8, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "node_kernel_latest_installed_info{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "name" },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Last Scan",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "time() - node_sw_inventory_scan_timestamp_seconds{instance=~\"$host\"}", "legendFormat": "{{instance}}", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Installed Allowlisted Software — $host",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "node_software_info{instance=~\"$host\"}", "format": "table", "instant": true, "refId": "A" }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
+            "renameByName": { "instance": "Host", "name": "Package", "version": "Version", "source": "Source" },
+            "indexByName": { "name": 0, "version": 1, "source": 2, "instance": 3 }
+          }
+        }
+      ],
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Pending Updates — $host",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "node_software_upgradable{instance=~\"$host\"}", "format": "table", "instant": true, "refId": "A" }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "Value": true, "job": true, "__name__": true, "container": true, "endpoint": true, "namespace": true, "pod": true, "service": true },
+            "renameByName": { "instance": "Host", "name": "Package", "candidate": "Candidate Version", "security": "Security" },
+            "indexByName": { "name": 0, "candidate": 1, "security": 2, "instance": 3 }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": { "conversions": [{ "targetField": "Security", "destinationType": "boolean" }], "fields": {} }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Security" }, "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-background" } }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "red", "value": 1 }] } }] }
+        ]
+      },
+      "options": { "showHeader": true }
+    }
+  ]
+}

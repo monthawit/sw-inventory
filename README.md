@@ -25,7 +25,8 @@ Supports Debian/Ubuntu (dpkg/apt) and RHEL/Rocky/Alma (rpm/dnf/yum).
 | `k8s/components/podmonitor/` | Mode B: httpd sidecar + PodMonitor |
 | `k8s/node-exporter-values.yaml` | Mode A: kube-prometheus-stack (Helm) values to turn on the textfile collector |
 | `k8s/node-exporter-patch.yaml` | Mode A: same, as a `kubectl patch` for non-Helm (plain manifest) installs |
-| `grafana/sw-inventory-dashboard.json` | Fleet overview + per-host drilldown dashboard (import into Grafana) |
+| `grafana/sw-inventory-overview-dashboard.json` | Fleet overview dashboard (all hosts, no filter) |
+| `grafana/sw-inventory-host-detail-dashboard.json` | Per-host drilldown dashboard (`$host` dropdown variable) |
 
 ## Install (per host)
 
@@ -136,17 +137,19 @@ curl -s localhost:9100/metrics | grep -E '^node_(software|packages|kernel_update
 
 Expected cardinality: about 15–40 series per node.
 
-## Grafana dashboard
+## Grafana dashboards
 
-`grafana/sw-inventory-dashboard.json` — import it in Grafana (Dashboards → New → Import, or provision it
-via a `GrafanaDashboard`/dashboard-sidecar ConfigMap). It needs a `Prometheus` datasource picked at import time.
+Two dashboards under `grafana/`, each imported separately (Dashboards → New → Import, or provisioned via a
+`GrafanaDashboard`/dashboard-sidecar ConfigMap). Both need a `Prometheus` datasource picked at import time,
+and link to each other (top-left dashboard link) once both are imported with their default UIDs.
 
-* **Fleet overview** (top, no filter): per-host summary table (packages total/upgradable, reboot/kernel
-  pending, last scan) plus a full table of every allowlisted package/version on every node — sortable by
-  host or by package.
-* **Host detail** (bottom): a `host` dropdown variable (built from `instance`) drills into one node —
-  installed allowlisted packages, pending updates (security highlighted), kernel and reboot status.
-  Leave it on "All" to see every host's rows in the same tables.
+* **`sw-inventory-overview-dashboard.json`** — fleet-wide, no filter: stat row (nodes reporting, reboot/kernel
+  pending, security updates), a per-host summary table (OS, kernel version, packages total/upgradable,
+  reboot/kernel pending, last scan — click a Host cell to jump to its detail dashboard), and a full table of
+  every allowlisted package/version on every node, sortable by host or by package.
+* **`sw-inventory-host-detail-dashboard.json`** — a `host` dropdown variable (built from `instance`) drills
+  into one node: installed allowlisted packages, pending updates (security highlighted), kernel and reboot
+  status. Leave it on "All" to see every host's rows in the same tables.
 
 ## Useful queries
 
