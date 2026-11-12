@@ -1,0 +1,12 @@
+# kube-prometheus-stack values: enable textfile collector on node-exporter DaemonSet
+# The host still runs sw-inventory.sh via systemd (install.sh), writing to /var/lib/node_exporter/textfile
+# Verify keys against your chart version: helm show values prometheus-community/prometheus-node-exporter
+prometheus-node-exporter:
+  extraArgs:
+    - --collector.textfile.directory=/host/textfile
+  extraHostVolumeMounts:
+    - name: textfile
+      hostPath: /var/lib/node_exporter/textfile
+      mountPath: /host/textfile
+      readOnly: true
+      mountPropagation: HostToContainer

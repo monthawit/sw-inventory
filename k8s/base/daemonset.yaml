@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sw-inventory
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: collector
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: collector
+    spec:
+      serviceAccountName: sw-inventory
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: system-node-critical   # remove if your policy disallows it
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - operator: Exists                      # run on control-plane and tainted nodes too
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: collector
+          image: busybox
+          command: ["/bin/sh", "/config/run.sh"]
+          env:
+            - name: NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+            - name: INTERVAL_SECONDS
+              value: "3600"
+            - name: JITTER_SECONDS
+              value: "600"
+          resources:
+            requests: {cpu: 5m, memory: 16Mi}
+            limits:   {memory: 256Mi}           # apt/dnf metadata parsing peaks here
+          securityContext:
+            runAsUser: 0                        # needed to chroot and read package DBs
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["SYS_CHROOT"]
+            seccompProfile: {type: RuntimeDefault}
+          volumeMounts:
+            - {name: config,    mountPath: /config, readOnly: true}
+            - {name: host-root, mountPath: /host,   readOnly: true}
+            - {name: host-run,  mountPath: /host/run, readOnly: true}
+            - {name: host-proc, mountPath: /host/proc, readOnly: true}
+            - {name: devnull,   mountPath: /host/dev/null}   # host / is read-only; scripts need a writable /dev/null
+            # the only writable host paths:
+            - {name: textfile,  mountPath: /host/var/lib/node_exporter/textfile}
+            - {name: inventory, mountPath: /host/var/lib/sw-inventory}
+      volumes:
+        - name: config
+          configMap: {name: sw-inventory, defaultMode: 0555}
+        - name: host-root
+          hostPath: {path: /, type: Directory}
+        - name: host-run
+          hostPath: {path: /run, type: Directory}
+        - name: host-proc
+          hostPath: {path: /proc, type: Directory}
+        - name: devnull
+          hostPath: {path: /dev/null, type: CharDevice}
+        - name: textfile
+          hostPath: {path: /var/lib/node_exporter/textfile, type: DirectoryOrCreate}
+        - name: inventory
+          hostPath: {path: /var/lib/sw-inventory, type: DirectoryOrCreate}

@@ -1,0 +1,21 @@
+# Mode B component: the DaemonSet serves sw_inventory.prom itself (busybox httpd sidecar)
+# and Prometheus Operator scrapes it via PodMonitor. node-exporter is not touched.
+# Use for OpenShift/OKD (cluster-monitoring node-exporter is operator-managed)
+# or any cluster where you cannot change node-exporter flags.
+#
+# Enable: uncomment "components:" in the root kustomization.yaml
+# Do NOT also enable the textfile dir on node-exporter, or metrics will be duplicated.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - podmonitor.yaml
+
+configMapGenerator:
+  - name: sw-inventory-httpd
+    files:
+      - httpd.conf
+
+patches:
+  - path: daemonset-httpd-patch.yaml
+    target: {kind: DaemonSet, name: sw-inventory}

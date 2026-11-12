@@ -1,0 +1,66 @@
+# Prometheus rule file (VM/bare-metal Prometheus). For prometheus-operator use k8s/prometheusrule.yaml
+groups:
+- name: sw-inventory
+  rules:
+  # ---------- pipeline health ----------
+  - alert: SwInventoryStale
+    expr: time() - node_sw_inventory_scan_timestamp_seconds > 3 * 3600
+    for: 15m
+    labels: {severity: warning}
+    annotations:
+      summary: "sw-inventory stale on {{ $labels.instance }}"
+      description: "Last run {{ $value | humanizeDuration }} ago. Check: systemctl status sw-inventory.timer"
+
+  - alert: SwInventoryMissing
+    expr: up{job=~".*node.*"} == 1 unless on(instance) node_sw_inventory_scan_timestamp_seconds
+    for: 2h
+    labels: {severity: info}
+    annotations:
+      summary: "node_exporter on {{ $labels.instance }} has no sw-inventory metrics (not installed or textfile collector disabled)"
+
+  - alert: SwInventoryFailed
+    expr: node_sw_inventory_scan_success == 0 or node_textfile_scrape_error == 1
+    for: 2h
+    labels: {severity: warning}
+    annotations:
+      summary: "sw-inventory / textfile error on {{ $labels.instance }}"
+
+  # ---------- patching ----------
+  - alert: SecurityUpdatesPending
+    expr: node_packages_upgradable{type="security"} > 0
+    for: 3d
+    labels: {severity: warning}
+    annotations:
+      summary: "{{ $value }} security updates pending > 3 days on {{ $labels.instance }}"
+
+  - alert: CriticalSoftwareSecurityUpdate
+    expr: node_software_upgradable{security="1"} == 1
+    for: 1d
+    labels: {severity: high}
+    annotations:
+      summary: "{{ $labels.name }} has security update {{ $labels.candidate }} on {{ $labels.instance }}"
+
+  - alert: KernelUpdateNotApplied
+    expr: node_kernel_update_pending == 1
+    for: 7d
+    labels: {severity: warning}
+    annotations:
+      summary: "New kernel installed but not running > 7 days on {{ $labels.instance }} (reboot needed)"
+
+  - alert: RebootRequired
+    expr: node_reboot_required == 1
+    for: 7d
+    labels: {severity: info}
+    annotations:
+      summary: "Reboot required > 7 days on {{ $labels.instance }}"
+
+  # ---------- fleet drift ----------
+  - record: fleet:software_versions:count
+    expr: count by (name) (count by (name, version) (node_software_info))
+
+  - alert: SoftwareVersionDrift
+    expr: fleet:software_versions:count{name=~"openssl|openssl-libs|libssl.*|openssh-server|containerd.*|kubelet|runc"} > 1
+    for: 7d
+    labels: {severity: info}
+    annotations:
+      summary: "{{ $labels.name }} runs {{ $value }} different versions across fleet"

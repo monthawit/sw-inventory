@@ -1,0 +1,30 @@
+- op: add
+  path: /spec/template/spec/containers/-
+  value:
+    name: metrics
+    image: busybox:1.37.0     # keep in sync with the base image / Harbor mirror
+    command: ["httpd", "-f", "-p", "9102", "-h", "/www", "-c", "/etc/httpd/httpd.conf"]
+    ports:
+      - {name: metrics, containerPort: 9102, protocol: TCP}
+    readinessProbe:
+      tcpSocket: {port: metrics}
+      periodSeconds: 30
+    resources:
+      requests: {cpu: 1m, memory: 4Mi}
+      limits:   {memory: 32Mi}
+    securityContext:
+      runAsUser: 65534
+      runAsGroup: 65534
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: {drop: ["ALL"]}
+      seccompProfile: {type: RuntimeDefault}
+    volumeMounts:
+      - {name: textfile,    mountPath: /www, readOnly: true}
+      - {name: httpd-conf,  mountPath: /etc/httpd, readOnly: true}
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: httpd-conf
+    configMap: {name: sw-inventory-httpd}

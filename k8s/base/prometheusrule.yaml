@@ -1,0 +1,72 @@
+# metadata.labels.release must match Prometheus .spec.ruleSelector
+# SwInventoryMissing uses kube-state-metrics (kube_node_info) so it works for Mode A and Mode B
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sw-inventory
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+  - name: sw-inventory
+    rules:
+    - alert: SwInventoryStale
+      expr: time() - node_sw_inventory_scan_timestamp_seconds > 3 * 3600
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: sw-inventory stale on {{ $labels.instance }}
+        description: 'Last run {{ $value | humanizeDuration }} ago. Check: systemctl status sw-inventory.timer'
+    - alert: SwInventoryMissing
+      expr: count(kube_node_info) - count(node_sw_inventory_scan_timestamp_seconds) > 0
+      for: 2h
+      labels:
+        severity: info
+      annotations:
+        summary: '{{ $value }} K8s node(s) have no sw-inventory metrics'
+        description: 'Check DaemonSet: kubectl -n monitoring get ds sw-inventory; compare kube_node_info with node_sw_inventory_scan_timestamp_seconds'
+    - alert: SwInventoryFailed
+      expr: node_sw_inventory_scan_success == 0 or (node_textfile_scrape_error == 1)
+      for: 2h
+      labels:
+        severity: warning
+      annotations:
+        summary: sw-inventory / textfile error on {{ $labels.instance }}
+    - alert: SecurityUpdatesPending
+      expr: node_packages_upgradable{type="security"} > 0
+      for: 3d
+      labels:
+        severity: warning
+      annotations:
+        summary: '{{ $value }} security updates pending > 3 days on {{ $labels.instance }}'
+    - alert: CriticalSoftwareSecurityUpdate
+      expr: node_software_upgradable{security="1"} == 1
+      for: 1d
+      labels:
+        severity: high
+      annotations:
+        summary: '{{ $labels.name }} has security update {{ $labels.candidate }} on {{ $labels.instance }}'
+    - alert: KernelUpdateNotApplied
+      expr: node_kernel_update_pending == 1
+      for: 7d
+      labels:
+        severity: warning
+      annotations:
+        summary: New kernel installed but not running > 7 days on {{ $labels.instance }} (reboot needed)
+    - alert: RebootRequired
+      expr: node_reboot_required == 1
+      for: 7d
+      labels:
+        severity: info
+      annotations:
+        summary: Reboot required > 7 days on {{ $labels.instance }}
+    - record: fleet:software_versions:count
+      expr: count by (name) (count by (name, version) (node_software_info))
+    - alert: SoftwareVersionDrift
+      expr: fleet:software_versions:count{name=~"openssl|openssl-libs|libssl.*|openssh-server|containerd.*|kubelet|runc"} > 1
+      for: 7d
+      labels:
+        severity: info
+      annotations:
+        summary: '{{ $labels.name }} runs {{ $value }} different versions across fleet'

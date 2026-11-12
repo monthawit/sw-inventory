@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: sw-inventory
+
+  labels:
+    release: kube-prometheus-stack   # must match Prometheus .spec.podMonitorSelector
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sw-inventory
+      app.kubernetes.io/component: collector
+  podMetricsEndpoints:
+    - port: metrics
+      path: /sw_inventory.prom
+      interval: 2m          # data changes hourly; keep < 5m to avoid staleness gaps
+      scrapeTimeout: 10s
+      relabelings:
+        # make series look like they belong to the node, not the pod
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: instance
+        - action: labeldrop
+          regex: (pod|container|endpoint|namespace)

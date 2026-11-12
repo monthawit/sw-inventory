@@ -1,0 +1,16 @@
+[Unit]
+Description=Software inventory metrics for node_exporter textfile collector
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/sw-inventory
+ExecStart=/usr/local/bin/sw-inventory.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=10min
+# Hardening: only the output dirs are writable
+ProtectSystem=strict
+ReadWritePaths=/var/lib/node_exporter/textfile /var/lib/sw-inventory -/var/lib/apt -/var/cache/apt -/var/cache/dnf -/var/cache/yum -/var/lib/dnf
+PrivateTmp=true
+NoNewPrivileges=true

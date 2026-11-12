@@ -1,0 +1,11 @@
+[Unit]
+Description=Run sw-inventory hourly
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1h
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

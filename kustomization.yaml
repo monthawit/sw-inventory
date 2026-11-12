@@ -1,0 +1,41 @@
+# Base (Mode A): DaemonSet writes sw_inventory.prom to the host textfile dir;
+# node-exporter (kube-prometheus-stack) reads it. See k8s/node-exporter-values.yaml.
+#
+#   kubectl apply -k .     # Mode A (default)
+#   Mode B (OpenShift/OKD, or node-exporter you cannot change): uncomment "components:" below, then apply -k .
+#
+# sw-inventory.sh and allowlist.conf in this folder are the single source for both
+# the systemd install (install.sh) and the K8s ConfigMap below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+
+resources:
+  - k8s/base/serviceaccount.yaml
+  - k8s/base/daemonset.yaml
+  - k8s/base/prometheusrule.yaml
+
+# Mode B: serve metrics from the DaemonSet + PodMonitor
+# components:
+#   - k8s/components/podmonitor
+
+configMapGenerator:
+  - name: sw-inventory
+    files:
+      - sw-inventory.sh
+      - allowlist.conf
+      - run.sh=k8s/base/run.sh
+
+generatorOptions:
+  disableNameSuffixHash: false   # hash suffix -> pods roll when script/allowlist changes
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: sw-inventory
+      app.kubernetes.io/part-of: xops-monitoring
+    includeSelectors: true
+
+images:
+  - name: busybox
+    newName: busybox          # mirror to Harbor, e.g. harbor.example.local/library/busybox
+    newTag: "1.37.0"
